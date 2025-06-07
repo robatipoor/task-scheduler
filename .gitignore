@@ -1,0 +1,43 @@
+# Go binary files
+/bin/
+/build/
+/*.exe
+/*.exe~
+/*.out
+/*.test
+
+# Dependency directories
+/vendor/
+/Gopkg.lock
+
+# Go module cache
+/.cache/go-build
+
+# IDE and editor files
+*.swp
+*.swo
+*.DS_Store
+*.idea/
+.vscode/
+*.iml
+
+# Logs
+*.log
+
+# Coverage files
+*.cov
+*.out
+
+# Temporary files
+*.tmp
+*.temp
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Other files
+*.zip
+*.tar.gz
+*.tgz
