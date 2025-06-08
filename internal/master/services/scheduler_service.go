@@ -197,8 +197,8 @@ func (ss *SchedulerService) AssignTasks(scheduleUID string) {
 					return workers[i].ID, workers[i].Url
 				}
 			}
-
-			_, err = ss.taskRepo.Assign(1, 100, scheduleUID, wgen)
+			tasks, err := ss.taskRepo.Assign(1, 100, scheduleUID, wgen)
+			log.Println("Assign tasks", tasks)
 			if err != nil {
 				log.Printf("take tasks failed: %v\n", err)
 				continue

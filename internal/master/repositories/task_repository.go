@@ -51,16 +51,24 @@ func (tr *TaskRepository) Assign(page, pageSize int, scheduleUID string, wgen fu
 		for i := range tasks {
 			tasks[i].ScheduleUID = &scheduleUID
 		}
-		if err := tx.Save(&tasks).Error; err != nil {
-			return fmt.Errorf("error updating tasks: %w", err)
-		}
 		w := wgen()
 		for _, task := range tasks {
 			workerID, workerUrl := w(task)
-			_, err := tr.saveAssignTask(task.ID, workerID, workerUrl)
+			assignTask := models.AssignTask{
+				TaskID:       task.ID,
+				WorkerID:     workerID,
+				WorkerUrl:    workerUrl,
+				Status:       models.Submitted,
+				ErrorMessage: "",
+				Result:       nil,
+			}
+			err := tx.Create(&assignTask).Error
 			if err != nil {
 				return err
 			}
+		}
+		if err := tx.Save(&tasks).Error; err != nil {
+			return fmt.Errorf("error updating tasks: %w", err)
 		}
 		return nil
 	}, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
@@ -77,17 +85,4 @@ func (tr *TaskRepository) Save(trackID string, input, priority uint) (*models.Ta
 	}
 	err := tr.db.Create(&task).Error
 	return &task, err
-}
-
-func (tr *TaskRepository) saveAssignTask(taskID, workerID uint, workerUrl string) (*models.AssignTask, error) {
-	assignTask := models.AssignTask{
-		TaskID:       taskID,
-		WorkerID:     workerID,
-		WorkerUrl:    workerUrl,
-		Status:       models.Submitted,
-		ErrorMessage: "",
-		Result:       nil,
-	}
-	err := tr.db.Create(&assignTask).Error
-	return &assignTask, err
 }
