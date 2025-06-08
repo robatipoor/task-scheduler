@@ -7,6 +7,7 @@ type TaskStatus uint
 const (
 	Submitted = iota
 	Running
+	Reporting
 	Completed
 	Failed
 )

@@ -64,7 +64,8 @@ func (ss *SchedulerService) Wait() {
 
 func (ss *SchedulerService) RecoverTasks() {
 	ss.wg.Add(1)
-	ticker := time.NewTicker(60 * ss.config.Scheduler.Duration)
+	d := 1800 * ss.config.Scheduler.Duration
+	ticker := time.NewTicker(d)
 	defer func() {
 		ticker.Stop()
 		ss.wg.Done()
@@ -72,7 +73,7 @@ func (ss *SchedulerService) RecoverTasks() {
 	for {
 		select {
 		case <-ticker.C:
-			tasks, err := ss.assignTaskRepo.FindAllUnknownState(time.Now().Add(-1 * time.Hour))
+			tasks, err := ss.assignTaskRepo.FindAllUnknownState(time.Now().Add(-1 * d))
 			if err != nil {
 				log.Printf("get unknown state tasks failed: %v\n", err)
 				continue
@@ -108,7 +109,7 @@ func (ss *SchedulerService) RecoverTasks() {
 
 func (ss *SchedulerService) DistributeTasks() {
 	ss.wg.Add(1)
-	ticker := time.NewTicker(45 * ss.config.Scheduler.Duration)
+	ticker := time.NewTicker(10 * ss.config.Scheduler.Duration)
 	defer func() {
 		ticker.Stop()
 		ss.wg.Done()
@@ -116,7 +117,7 @@ func (ss *SchedulerService) DistributeTasks() {
 	for {
 		select {
 		case <-ticker.C:
-			tasks, err := ss.assignTaskRepo.FindPageByStatus(models.Submitted, 1, 10)
+			tasks, err := ss.assignTaskRepo.FindPageByStatus(models.Submitted, 1, 100)
 			if err != nil {
 				log.Printf("get submitted tasks failed: %v\n", err)
 				continue
@@ -136,7 +137,6 @@ func (ss *SchedulerService) DistributeTasks() {
 					Input:   task.Input,
 				}
 				statusCode, err := ss.workerClient.AssignTask(atask.WorkerUrl, req)
-				log.Println(">>>>>>>>>>>>>>>>>>>>>> ", *statusCode)
 				var status models.AssingStatus
 				var errorMessage string
 				if err != nil {
@@ -164,7 +164,7 @@ func (ss *SchedulerService) DistributeTasks() {
 
 func (ss *SchedulerService) AssignTasks(scheduleUID string) {
 	ss.wg.Add(1)
-	ticker := time.NewTicker(30 * ss.config.Scheduler.Duration)
+	ticker := time.NewTicker(10 * ss.config.Scheduler.Duration)
 	defer func() {
 		ticker.Stop()
 		ss.wg.Done()
@@ -173,35 +173,37 @@ func (ss *SchedulerService) AssignTasks(scheduleUID string) {
 	for {
 		select {
 		case <-ticker.C:
-			tasks, err := ss.taskRepo.Take(1, 10, scheduleUID)
-			if err != nil {
-				log.Printf("take tasks failed: %v\n", err)
-				continue
-			}
-			works, err := ss.workerRepo.FindActiveWorkers()
+			workers, err := ss.workerRepo.FindActiveWorkers()
 
 			if err != nil {
 				log.Printf("find active workers failed: %v\n", err)
 				continue
 			}
-			worksLen := len(works)
-			if worksLen == 0 {
+
+			workersLen := len(workers)
+			if workersLen == 0 {
 				log.Printf("no active worker found\n")
 				continue
 			}
-			i := 0
-			for _, task := range tasks {
-				_, err := ss.assignTaskRepo.Save(task.ID, works[i].ID, works[i].Url)
-				if err != nil {
-					log.Printf("save assing task failed: %v\n", err)
-					continue
-				}
-				if i < worksLen-1 {
-					i++
-				} else {
-					i = 0
+
+			wgen := func() func(task models.Task) (uint, string) {
+				i := 0
+				return func(task models.Task) (uint, string) {
+					if i < workersLen-1 {
+						i++
+					} else {
+						i = 0
+					}
+					return workers[i].ID, workers[i].Url
 				}
 			}
+
+			_, err = ss.taskRepo.Assign(1, 100, scheduleUID, wgen)
+			if err != nil {
+				log.Printf("take tasks failed: %v\n", err)
+				continue
+			}
+
 		case <-ss.context.Done():
 			return
 		}
@@ -210,7 +212,7 @@ func (ss *SchedulerService) AssignTasks(scheduleUID string) {
 
 func (ss *SchedulerService) HeartbeatCheck() {
 	ss.wg.Add(1)
-	ticker := time.NewTicker(20 * ss.config.Scheduler.Duration)
+	ticker := time.NewTicker(30 * ss.config.Scheduler.Duration)
 	defer func() {
 		ticker.Stop()
 		ss.wg.Done()

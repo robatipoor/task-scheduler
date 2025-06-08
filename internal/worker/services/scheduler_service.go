@@ -66,7 +66,7 @@ func (ss *SchedulerService) PerformingTasks() {
 					defer ss.wg.Done()
 					time.Sleep(time.Duration(task.Input) * time.Millisecond)
 					r := uint(rand.Intn(int(task.Input)))
-					_, err := ss.taskRepo.Update(task.TrackID, r, models.Completed)
+					_, err := ss.taskRepo.Update(task.TrackID, r, models.Reporting)
 					if err != nil {
 						log.Printf("Failed update task %v", err)
 						return
@@ -82,6 +82,11 @@ func (ss *SchedulerService) PerformingTasks() {
 					}
 					if *statusCode != 200 {
 						log.Println("Failed update result task: ", statusCode)
+						return
+					}
+					_, err = ss.taskRepo.Update(task.TrackID, r, models.Completed)
+					if err != nil {
+						log.Printf("Failed update task %v", err)
 						return
 					}
 				}()
