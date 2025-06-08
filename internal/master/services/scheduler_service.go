@@ -117,7 +117,7 @@ func (ss *SchedulerService) DistributeTasks() {
 	for {
 		select {
 		case <-ticker.C:
-			tasks, err := ss.assignTaskRepo.FindPageByStatus(models.Submitted, 1, 100)
+			tasks, err := ss.assignTaskRepo.FindPageByStatus(models.Assinged, 1, 100)
 			if err != nil {
 				log.Printf("get submitted tasks failed: %v\n", err)
 				continue
@@ -146,7 +146,7 @@ func (ss *SchedulerService) DistributeTasks() {
 				} else if !(*statusCode == 201 || *statusCode == 200) {
 					status = models.Failed
 				} else {
-					status = models.Assinged
+					status = models.Submitted
 				}
 
 				_, err = ss.assignTaskRepo.Update(req.TrackID, status, nil, errorMessage)

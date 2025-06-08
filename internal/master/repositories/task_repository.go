@@ -58,7 +58,7 @@ func (tr *TaskRepository) Assign(page, pageSize int, scheduleUID string, wgen fu
 				TaskID:       task.ID,
 				WorkerID:     workerID,
 				WorkerUrl:    workerUrl,
-				Status:       models.Submitted,
+				Status:       models.Assinged,
 				ErrorMessage: "",
 				Result:       nil,
 			}
