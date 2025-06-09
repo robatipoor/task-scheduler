@@ -1,6 +1,13 @@
 # Task Scheduler Project
 
-```
+```                                    +-----------------+
+                                       |   API Gateway   |
+                                       +--------+--------+         
+                           /                                        \
+                          /                                          \
+                         /                                            \ 
+                        /                                              \
+                       /                                                \
             +------------------+                              +------------------+
             |   Master Node 1  |                              |   Master Node 2  |
             |  (PostgreSQL DB) |                              |  (PostgreSQL DB) |
