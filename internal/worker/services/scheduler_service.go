@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"log"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -26,8 +25,8 @@ func NewSchedulerService(
 	config *config.Configure,
 	masterClient client.MasterClientInterface,
 	taskRepo repositories.TaskRepositoryInterface,
-) SchedulerService {
-	return SchedulerService{
+) *SchedulerService {
+	return &SchedulerService{
 		context:      context,
 		config:       config,
 		taskRepo:     taskRepo,
@@ -55,25 +54,21 @@ func (ss *SchedulerService) PerformingTasks() {
 	for {
 		select {
 		case <-ticker.C:
-			tasks, err := ss.taskRepo.FindPageByStatus(models.Submitted, 1, 10)
+			tasks, err := ss.taskRepo.FindPageByStatus(models.Reporting, 1, 10)
 			if err != nil {
 				log.Printf("Failed to find tasks: %v", err)
 				continue
 			}
+			if len(tasks) == 0 {
+				continue
+			}
+			ss.wg.Add(len(tasks))
 			for _, task := range tasks {
-				ss.wg.Add(1)
 				go func() {
 					defer ss.wg.Done()
-					time.Sleep(time.Duration(task.Input) * time.Millisecond)
-					r := uint(rand.Intn(int(task.Input)))
-					_, err := ss.taskRepo.Update(task.TrackID, r, models.Completed)
-					if err != nil {
-						log.Printf("Failed update task %v", err)
-						return
-					}
 					req := client.UpdateResultTaskRequest{
 						TrackID: task.TrackID,
-						Result:  r,
+						Result:  *task.Result,
 					}
 					statusCode, err := ss.masterClient.UpdateResultTask(ss.config.Master.Url, req)
 					if err != nil {
@@ -83,6 +78,9 @@ func (ss *SchedulerService) PerformingTasks() {
 					if *statusCode != 200 {
 						log.Println("Failed update result task: ", statusCode)
 						return
+					}
+					if _, err := ss.taskRepo.Update(task.TrackID, *task.Result, models.Completed); err != nil {
+						log.Printf("Failed to update task: %v", err)
 					}
 				}()
 			}

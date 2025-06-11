@@ -49,7 +49,7 @@ func main() {
 
 	taskRepo := repositories.NewTaskRepository(db)
 	healthCheckService := services.NewHealthCheckService(db)
-	taskService := services.NewTaskService(taskRepo)
+	taskService := services.NewTaskService(ctx, cfg, masterClient, taskRepo)
 	schedulerService := services.NewSchedulerService(ctx, cfg, masterClient, taskRepo)
 	taskController := controllers.NewTaskController(taskService)
 	healthCheckController := controllers.NewHealthCheckController(healthCheckService)
@@ -72,6 +72,7 @@ func main() {
 		<-quit
 		log.Printf("Shutting down server...")
 		cancel()
+		taskService.Wait()
 		schedulerService.Wait()
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Println("Server forced to shutdown: ", err)
